@@ -1,0 +1,6 @@
+# Client side only (your laptop / Streamlit). The vLLM server itself runs on a GPU box
+# (Colab T4) and is installed there by colab_serve.ipynb (`pip install vllm`).
+streamlit>=1.30
+openai>=1.30
+jsonschema>=4.0
+requests>=2.28

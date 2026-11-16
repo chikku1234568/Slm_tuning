@@ -15,3 +15,23 @@ Training steps are **1-step smoke tests**, not real fine-tunes. No model-quality
 
 ## Model & license
 Default base: `Qwen/Qwen2.5-0.5B-Instruct` (scale to `Qwen2.5-1.5B-Instruct`). Qwen2.5 0.5B/1.5B Instruct are Apache-2.0 per their model cards. Code in this repo is released under Apache-2.0 (`LICENSE`).
+
+## Serving (vLLM + Streamlit)
+Serve the trained model at low latency and call it from a Streamlit UI. Concepts (prefill/decode, KV cache, PagedAttention, continuous batching, prefix caching, structured outputs, scaling): [`docs/Serving_and_KV_Cache_Explained.md`](docs/Serving_and_KV_Cache_Explained.md).
+
+`serving/`:
+- `schema.py` — the exact training `SYS` prompt, JSON `SCHEMA`, `FIELDS`, sample narrations.
+- `export_weights.py` — optional helper: merge a LoRA adapter into the fp16 base, save safetensors, push adapter + merged model to private HF repos (optional W&B Artifact).
+- `serve_vllm.sh` — `vllm serve` with every flag explained.
+- `client.py` — `parse(text)` / `parse_batch(lines)`: OpenAI-compatible, temperature 0, schema-guided decoding, jsonschema check, latency stats, regex fallback if the server is down.
+- `streamlit_app.py` — demo UI (one or many lines, JSON per line, schema badges, p50/p95 latency, throughput).
+- `colab_serve.ipynb` — Colab T4: load merged weights (HF / Drive / merge an adapter) → launch vLLM → test → cloudflared public URL; GGUF/Ollama CPU fallback outline. (Built by `build_colab_serve.py`.)
+- `requirements-serving.txt` — client-side deps.
+
+Quick start:
+1. Train in your own notebook; save the LoRA adapter (e.g. to Drive).
+2. Export: `HF_TOKEN=... python serving/export_weights.py --adapter <adapter_dir> --base Qwen/Qwen2.5-0.5B-Instruct --adapter-repo <user>/finai-0.5b-lora --merged-repo <user>/finai-0.5b-merged` (or let `colab_serve.ipynb` merge it).
+3. Open `serving/colab_serve.ipynb` in Colab (T4), set `MODEL_SOURCE` / `HF_REPO`, Run all, copy the printed `https://….trycloudflare.com` URL.
+4. On your laptop: `pip install -r serving/requirements-serving.txt` then `SLM_URL=https://….trycloudflare.com streamlit run serving/streamlit_app.py`.
+
+Guided decoding uses vLLM's current `extra_body={"structured_outputs": {"json": SCHEMA}}`; for vLLM < 0.12 set `SLM_GUIDED=guided_json`. The tunnel URL is public — add `--api-key` to `vllm serve` (and `SLM_API_KEY` on the client) for anything beyond a quick demo.
