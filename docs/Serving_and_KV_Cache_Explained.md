@@ -97,7 +97,7 @@ API (see vLLM [structured outputs docs](https://docs.vllm.ai/en/latest/features/
 | fp16 merged | no quantization | default; 0.5B/1.5B fit a T4 easily |
 | **AWQ** (4-bit weights) | `--quantization awq` with an AWQ checkpoint | more replicas per GPU / bigger KV pool; re-run eval after quantizing |
 | **FP8** | weights (and optionally KV cache, `--kv-cache-dtype fp8`) | needs newer GPUs (Ada/Hopper, e.g. L4/H100); not T4 |
-| **GGUF** (llama.cpp / Ollama) | CPU / laptop inference | demo backup without a GPU; slower |
+| **GGUF** (llama.cpp / Ollama) | CPU / laptop inference | demo backup without a GPU; slower. Ready-to-run setup: [`serving/cpu_ollama/`](../serving/cpu_ollama/README.md) |
 
 Always re-check accuracy after quantizing — small models can be more sensitive.
 
@@ -158,3 +158,5 @@ flowchart LR
 - HF Hub uploads: https://huggingface.co/docs/huggingface_hub/guides/upload
 - safetensors: https://huggingface.co/docs/safetensors/
 - Ollama import (GGUF): https://docs.ollama.com/import
+- Ollama structured outputs / OpenAI compatibility: https://docs.ollama.com/capabilities/structured-outputs · https://docs.ollama.com/api/openai-compatibility
+- This repo's CPU + Ollama path: [`serving/cpu_ollama/README.md`](../serving/cpu_ollama/README.md)

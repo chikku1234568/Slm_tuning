@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# CPU/Ollama serving: big local artifacts
+serving/cpu_ollama/llama.cpp/
+serving/cpu_ollama/*.gguf

@@ -7,15 +7,18 @@
 Every result looks like:
     {"text": ..., "json": {...} or None, "raw": "<model text>",
      "valid_json": bool, "schema_ok": bool, "latency_ms": float,
-     "backend": "vllm" | "regex_fallback", "error": None | str}
+     "backend": "vllm" | "ollama" | "regex_fallback", "error": None | str}
 
 Config (env vars):
-    SLM_URL     server base URL, e.g. http://localhost:8000 or https://xxx.trycloudflare.com
+    SLM_URL     server base URL, e.g. http://localhost:8000, https://xxx.trycloudflare.com,
+                or http://localhost:11434 for Ollama (CPU laptop path: serving/cpu_ollama/)
     SLM_MODEL   served model name (default "finai", set by --served-model-name)
     SLM_GUIDED  how to ask vLLM for schema-constrained output:
                   "structured_outputs" (default; current vLLM, >= 0.12)
                   "guided_json"        (older vLLM < 0.12; removed in 0.12)
                   "response_format"    (OpenAI-style json_schema; also supported by vLLM)
+                  "ollama"             (Ollama / llama.cpp server: OpenAI-style response_format json_schema,
+                                        which Ollama turns into a grammar; see serving/cpu_ollama/README.md)
                   "none"               (no constraint; rely on the fine-tune + validation)
 """
 import json
@@ -135,7 +138,7 @@ def parse(text, url=None, model=None, guided=None, cli=None, timeout=30):
         temperature=0,      # greedy: deterministic, best for extraction
         max_tokens=200,     # our JSON is ~60-100 tokens; caps decode time and KV-cache use
     )
-    if guided == "response_format":
+    if guided in ("response_format", "ollama"):
         kwargs["response_format"] = {"type": "json_schema",
                                      "json_schema": {"name": "narration", "schema": SCHEMA}}
     eb = _extra_body(guided)
@@ -150,7 +153,8 @@ def parse(text, url=None, model=None, guided=None, cli=None, timeout=30):
     obj = _to_json(raw)
     ok, sch = _check(obj)
     return {"text": text, "json": obj, "raw": raw, "valid_json": ok, "schema_ok": sch,
-            "latency_ms": (time.perf_counter() - t0) * 1000, "backend": "vllm", "error": None,
+            "latency_ms": (time.perf_counter() - t0) * 1000,
+            "backend": "ollama" if (guided == "ollama" or ":11434" in (url or SLM_URL)) else "vllm", "error": None,
             "completion_tokens": getattr(getattr(r, "usage", None), "completion_tokens", None)}
 
 
@@ -182,10 +186,15 @@ def parse_batch(lines, url=None, model=None, guided=None, concurrency=16, timeou
 
 
 def health(url=None, timeout=3):
-    """True if the vLLM server answers GET /health (it returns 200 once the model is loaded)."""
+    """True if the server is up. vLLM answers GET /health (200 once the model is loaded);
+    Ollama has no /health but answers GET / with "Ollama is running"; llama-server has /health too."""
     import requests
+    base = (url or SLM_URL).rstrip("/")
     try:
-        return requests.get((url or SLM_URL).rstrip("/") + "/health", timeout=timeout).status_code == 200
+        if requests.get(base + "/health", timeout=timeout).status_code == 200:
+            return True
+        r = requests.get(base + "/", timeout=timeout)
+        return r.status_code == 200 and "ollama" in r.text.lower()
     except Exception:
         return False
 

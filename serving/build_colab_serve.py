@@ -106,8 +106,10 @@ For demos without a GPU. Run on any machine with the **merged** model folder. Sl
 Docs: https://docs.ollama.com/import · llama.cpp: https://github.com/ggml-org/llama.cpp
 
 Ollama also serves an OpenAI-compatible API at `http://localhost:11434/v1`, so the same client works:
-`SLM_URL=http://localhost:11434 SLM_MODEL=finai SLM_GUIDED=response_format streamlit run serving/streamlit_app.py`
-(Check Ollama's docs for its structured-output support; otherwise use `SLM_GUIDED=none`.)"""),
+`SLM_URL=http://localhost:11434 SLM_MODEL=finai SLM_GUIDED=ollama streamlit run serving/streamlit_app.py`
+
+**Full step-by-step (Modelfile with the correct Qwen ChatML template, run scripts, troubleshooting): `serving/cpu_ollama/README.md`.**
+Flip `RUN_GGUF = True` below, run the cell, download `finai-q8_0.gguf`, and put it next to `serving/cpu_ollama/Modelfile` (use that Modelfile, not the minimal one this cell writes)."""),
 code("""RUN_GGUF = False   # outline only; flip to True to try on Colab
 if RUN_GGUF:
     !git clone -q --depth 1 https://github.com/ggml-org/llama.cpp /content/llama.cpp
@@ -116,7 +118,10 @@ if RUN_GGUF:
     !python /content/llama.cpp/convert_hf_to_gguf.py {MODEL if os.path.isdir(MODEL) else MERGED_DIR} --outfile /content/finai-q8_0.gguf --outtype q8_0
     # Modelfile for Ollama (temperature 0 for deterministic extraction)
     open('/content/Modelfile','w').write('FROM /content/finai-q8_0.gguf\\nPARAMETER temperature 0\\n')
-    print('On a machine with Ollama installed:  ollama create finai -f Modelfile  &&  ollama run finai')"""),
+    print('Download /content/finai-q8_0.gguf, put it next to serving/cpu_ollama/Modelfile, then run serving/cpu_ollama/run_ollama.sh (or .ps1)')
+    try:
+        from google.colab import files; files.download('/content/finai-q8_0.gguf')   # ~0.5 GB for 0.5B
+    except Exception as e: print('download manually from the Files panel:', e)"""),
 md("""## Stop
 `!pkill -f "vllm serve"; pkill -f cloudflared` — Colab also stops everything when the runtime disconnects."""),
 ]

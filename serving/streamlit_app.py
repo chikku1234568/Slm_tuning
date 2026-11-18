@@ -21,12 +21,16 @@ st.title("Fin AI SLM — bank statement narration → JSON")
 
 with st.sidebar:
     st.header("Server")
-    url = st.text_input("vLLM server URL", os.environ.get("SLM_URL", "http://localhost:8000"))
+    url = st.text_input("Server URL (vLLM :8000, Ollama :11434)", os.environ.get("SLM_URL", "http://localhost:8000"))
     model = st.text_input("Served model name", os.environ.get("SLM_MODEL", "finai"))
-    guided = st.selectbox("Structured output mode", ["structured_outputs", "guided_json", "response_format", "none"],
+    _modes = ["structured_outputs", "guided_json", "response_format", "ollama", "none"]
+    guided = st.selectbox("Structured output mode", _modes,
+                          index=_modes.index(os.environ.get("SLM_GUIDED", "structured_outputs"))
+                          if os.environ.get("SLM_GUIDED", "structured_outputs") in _modes else 0,
                           help="structured_outputs = current vLLM (>=0.12). guided_json = older vLLM. "
+                               "ollama = Ollama / llama.cpp (CPU path, json_schema response_format). "
                                "none = no constraint (tests the fine-tune alone).")
-    concurrency = st.slider("Concurrent requests (batch)", 1, 64, 16,
+    concurrency = st.slider("Concurrent requests (batch)", 1, 64, int(os.environ.get("SLM_CONCURRENCY", "16")),
                             help="Lines are sent in parallel; vLLM batches them on the GPU (continuous batching).")
     up = client.health(url)
     st.markdown("Status: " + (":green[● server up]" if up else ":red[● server unreachable → regex fallback]"))

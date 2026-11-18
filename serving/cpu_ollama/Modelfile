@@ -1,0 +1,36 @@
+# Ollama Modelfile for the Fin AI SLM (Qwen2.5-0.5B-Instruct fine-tune, bank narration -> 10-field JSON)
+# Build:  ollama create finai -f Modelfile      (run from this folder, with the .gguf next to this file)
+# Docs:   https://docs.ollama.com/import  and  https://docs.ollama.com/modelfile
+#
+# The GGUF path is relative to this file. Using the q4_K_M file instead? Change the line below.
+FROM ./finai-q8_0.gguf
+
+# Qwen2.5 ChatML template, set explicitly so we never depend on auto-detection.
+# It renders exactly what tokenizer.apply_chat_template(system + user, add_generation_prompt=True)
+# rendered during training:
+#   <|im_start|>system\n{SYS}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n
+# (We deliberately leave out Qwen's tool-calling blocks: this model does not call tools.)
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ .Content }}<|im_end|>
+{{ end }}
+{{- end }}<|im_start|>assistant
+"""
+
+# Must be the exact training system prompt (copied from serving/schema.py::SYS; a test checks this).
+SYSTEM """Convert the bank statement narration into JSON with keys: category, sub_category, counterparty_name, counterparty_type, is_emi, lender_name, is_bounce_or_return, is_reversal, p2p_or_p2m, confidence. Output JSON only."""
+
+# ChatML end-of-turn token
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|im_start|>"
+# Deterministic extraction
+PARAMETER temperature 0
+# Context window (tokens). Prompt ~80-120 tokens + JSON ~100 -> 512 is plenty and keeps the KV cache tiny.
+PARAMETER num_ctx 512
+# Max output tokens per request (our JSON is ~60-100 tokens)
+PARAMETER num_predict 256

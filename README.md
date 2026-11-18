@@ -27,11 +27,14 @@ Serve the trained model at low latency and call it from a Streamlit UI. Concepts
 - `streamlit_app.py` — demo UI (one or many lines, JSON per line, schema badges, p50/p95 latency, throughput).
 - `colab_serve.ipynb` — Colab T4: load merged weights (HF / Drive / merge an adapter) → launch vLLM → test → cloudflared public URL; GGUF/Ollama CPU fallback outline. (Built by `build_colab_serve.py`.)
 - `requirements-serving.txt` — client-side deps.
+- `cpu_ollama/` — **no-GPU path: CPU + Ollama** (GGUF conversion scripts, `Modelfile` with explicit Qwen ChatML template, `run_ollama.sh/.ps1`, `check_setup.py`, README with install / quantization / structured-output / troubleshooting). See [`serving/cpu_ollama/README.md`](serving/cpu_ollama/README.md).
 
 Quick start:
 1. Train in your own notebook; save the LoRA adapter (e.g. to Drive).
 2. Export: `HF_TOKEN=... python serving/export_weights.py --adapter <adapter_dir> --base Qwen/Qwen2.5-0.5B-Instruct --adapter-repo <user>/finai-0.5b-lora --merged-repo <user>/finai-0.5b-merged` (or let `colab_serve.ipynb` merge it).
 3. Open `serving/colab_serve.ipynb` in Colab (T4), set `MODEL_SOURCE` / `HF_REPO`, Run all, copy the printed `https://….trycloudflare.com` URL.
 4. On your laptop: `pip install -r serving/requirements-serving.txt` then `SLM_URL=https://….trycloudflare.com streamlit run serving/streamlit_app.py`.
+
+**No GPU?** Use CPU + Ollama: [`serving/cpu_ollama/README.md`](serving/cpu_ollama/README.md). Same Streamlit app: `SLM_URL=http://localhost:11434 SLM_MODEL=finai SLM_GUIDED=ollama streamlit run serving/streamlit_app.py` (Ollama takes the schema via OpenAI-style `response_format` json_schema).
 
 Guided decoding uses vLLM's current `extra_body={"structured_outputs": {"json": SCHEMA}}`; for vLLM < 0.12 set `SLM_GUIDED=guided_json`. The tunnel URL is public — add `--api-key` to `vllm serve` (and `SLM_API_KEY` on the client) for anything beyond a quick demo.
